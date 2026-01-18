@@ -1,0 +1,28 @@
+# CLI Games Launcher - Requirements
+# Core dependencies (minimal for maximum compatibility)
+
+# Optional dependencies for enhanced features:
+# Uncomment as needed for specific platforms or features
+
+# For color support and enhanced terminal features:
+# colorama>=0.4.4
+
+# For advanced text rendering:
+# pyfiglet>=0.8.post1
+
+# For online features and networking:
+# requests>=2.25.1
+
+# For JSON configuration (built-in):
+# json (standard library)
+
+# For ncurses (built-in on Unix/Linux):
+# curses (standard library on Unix/Linux)
+
+# For Windows ncurses support:
+# windows-curses>=2.2.0
+
+# Development dependencies (uncomment for development):
+# pytest>=6.0.0
+# black>=21.0.0
+# flake8>=3.8.0

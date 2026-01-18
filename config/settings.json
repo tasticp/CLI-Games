@@ -1,0 +1,39 @@
+{
+  "theme": {
+    "background_color": "black",
+    "text_color": "white",
+    "accent_color": "cyan",
+    "error_color": "red",
+    "success_color": "green"
+  },
+  "display": {
+    "fps": 60,
+    "show_fps": false,
+    "sound_enabled": true,
+    "vibration_enabled": false,
+    "screen_shake": false
+  },
+  "gameplay": {
+    "difficulty": "normal",
+    "auto_save": true,
+    "show_controls": true,
+    "pause_on_focus_loss": true
+  },
+  "ui": {
+    "menu_animation_speed": 0.3,
+    "show_game_previews": true,
+    "sort_games_by": "name",
+    "show_favorites_first": true
+  },
+  "online": {
+    "enable_online_features": true,
+    "auto_sync_leaderboards": true,
+    "enable_multiplayer": true,
+    "anonymous_data": true
+  },
+  "plugins": {
+    "auto_update": true,
+    "enable_community_plugins": true,
+    "plugin_source": "official"
+  }
+}
