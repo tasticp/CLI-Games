@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 
 from core.config import Config
 from core.plugin_manager import PluginManager
+from core.leaderboard import LeaderboardSystem
 from ui.menu import Menu, MenuItem, MenuAction
 from plugins.base_game import BaseGame, GameMode
 
@@ -18,7 +19,9 @@ class GameLauncher:
     def __init__(self, config: Config):
         self.config = config
         self.plugin_manager = PluginManager(config)
+        self.leaderboard_system = LeaderboardSystem(config)
         self.running = True
+        self.current_player = "Player"  # Default player name
         
         # Load all plugins
         self.plugin_manager.load_all_plugins()
@@ -116,12 +119,13 @@ class GameLauncher:
     
     def _create_leaderboards_menu(self) -> Menu:
         """Create the leaderboards menu."""
-        leaderboard_menu = Menu("LEADERBOARDS", "View high scores")
+        leaderboard_menu = Menu("LEADERBOARDS", "View high scores and achievements")
         
-        leaderboard_menu.add_text("Local Scores", "Your personal best scores")
-        leaderboard_menu.add_text("Global Scores", "Top scores worldwide")
-        leaderboard_menu.add_text("Friends", "Compete with your friends")
-        leaderboard_menu.add_text("Achievements", "View your accomplishments")
+        leaderboard_menu.add_submenu("Game Leaderboards", self._create_game_leaderboards_menu())
+        leaderboard_menu.add_submenu("Global Top 10", self._create_global_leaderboard_menu())
+        leaderboard_menu.add_submenu("Player Statistics", self._create_player_stats_menu())
+        leaderboard_menu.add_submenu("Achievements", self._create_achievements_menu())
+        leaderboard_menu.add_submenu("Recent Scores", self._create_recent_scores_menu())
         leaderboard_menu.add_back()
         
         return leaderboard_menu
@@ -207,6 +211,177 @@ class GameLauncher:
         installed_menu.add_back()
         return installed_menu
     
+    def _create_game_leaderboards_menu(self) -> Menu:
+        """Create game-specific leaderboards menu."""
+        game_leaderboards_menu = Menu("GAME LEADERBOARDS", "Choose a game")
+        
+        plugins = self.plugin_manager.get_enabled_plugins()
+        for plugin_id, info in plugins.items():
+            game_name = info.metadata.get('name', 'Unknown')
+            description = info.metadata.get('description', '')
+            
+            # Create submenu for this game's modes
+            game_modes_menu = Menu(f"{game_name.upper()} SCORES")
+            
+            for mode in info.metadata.get('supported_modes', []):
+                mode_name = mode.value if hasattr(mode, 'value') else str(mode)
+                mode_display = mode_name.replace('_', ' ').title()
+                game_modes_menu.add_submenu(
+                    mode_display, 
+                    self._create_mode_leaderboard_menu(plugin_id, mode_name, game_name)
+                )
+            
+            game_modes_menu.add_back()
+            game_leaderboards_menu.add_submenu(
+                f"{game_name} - {description[:30]}...", 
+                game_modes_menu
+            )
+        
+        game_leaderboards_menu.add_back()
+        return game_leaderboards_menu
+    
+    def _create_mode_leaderboard_menu(self, plugin_id: str, mode: str, game_name: str) -> Menu:
+        """Create leaderboard for specific game mode."""
+        menu = Menu(f"{game_name.upper()} - {mode.upper()}")
+        
+        # Get top scores
+        scores = self.leaderboard_system.get_leaderboard(game_name, mode, limit=10)
+        
+        if not scores:
+            menu.add_text("No scores yet", "Be the first to play!")
+        else:
+            for i, entry in enumerate(scores, 1):
+                # Format the score entry
+                score_text = f"{i}. {entry.player_name}: {entry.score}"
+                
+                # Add timestamp if recent
+                time_diff = time.time() - entry.timestamp
+                if time_diff < 86400:  # Less than 24 hours
+                    score_text += " (new)"
+                
+                menu.add_text(score_text, f"Played {datetime.fromtimestamp(entry.timestamp).strftime('%Y-%m-%d')}")
+        
+        menu.add_back()
+        return menu
+    
+    def _create_global_leaderboard_menu(self) -> Menu:
+        """Create global leaderboard menu."""
+        global_menu = Menu("GLOBAL TOP 10")
+        
+        scores = self.leaderboard_system.get_global_leaderboard(limit=10)
+        
+        if not scores:
+            global_menu.add_text("No scores yet", "Play some games to see rankings!")
+        else:
+            for i, entry in enumerate(scores, 1):
+                score_text = f"{i}. {entry.player_name}: {entry.score}"
+                game_info = f"{entry.game_name} ({entry.game_mode})"
+                global_menu.add_text(score_text, game_info)
+        
+        global_menu.add_back()
+        return global_menu
+    
+    def _create_player_stats_menu(self) -> Menu:
+        """Create player statistics menu."""
+        stats_menu = Menu("PLAYER STATISTICS")
+        
+        stats = self.leaderboard_system.get_player_stats(self.current_player)
+        if not stats:
+            stats_menu.add_text("No stats yet", "Play some games to see your statistics!")
+        else:
+            stats_menu.add_text(f"Total Games: {stats['total_games']}")
+            stats_menu.add_text(f"Total Score: {stats['total_score']}")
+            
+            # Games played
+            if stats['games_played']:
+                stats_menu.add_text("Games Played:")
+                for game_name, count in stats['games_played'].items():
+                    stats_menu.add_text(f"  {game_name}: {count}")
+        
+        # Top players
+        stats_menu.add_submenu("Top Players", self._create_top_players_menu())
+        stats_menu.add_back()
+        return stats_menu
+    
+    def _create_top_players_menu(self) -> Menu:
+        """Create top players menu."""
+        top_menu = Menu("TOP PLAYERS")
+        
+        top_players = self.leaderboard_system.get_top_players(limit=10)
+        
+        if not top_players:
+            top_menu.add_text("No players yet")
+        else:
+            for i, (player_name, total_score) in enumerate(top_players, 1):
+                top_menu.add_text(f"{i}. {player_name}: {total_score}", f"Total score")
+        
+        top_menu.add_back()
+        return top_menu
+    
+    def _create_achievements_menu(self) -> Menu:
+        """Create achievements menu."""
+        achievements_menu = Menu("ACHIEVEMENTS", "Your accomplishments")
+        
+        # Get statistics
+        stats = self.leaderboard_system.get_statistics()
+        achievements_menu.add_text(f"Unlocked: {stats['achievements_unlocked']}/{stats['total_achievements']}")
+        achievements_menu.add_text(f"Progress: {stats['achievement_percentage']:.1f}%")
+        
+        # Unlocked achievements
+        unlocked = self.leaderboard_system.get_unlocked_achievements()
+        if unlocked:
+            achievements_menu.add_submenu("Unlocked", self._create_unlocked_achievements_menu(unlocked))
+        
+        # Locked achievements
+        locked = self.leaderboard_system.get_locked_achievements()
+        if locked:
+            achievements_menu.add_submenu("Locked", self._create_locked_achievements_menu(locked))
+        
+        achievements_menu.add_back()
+        return achievements_menu
+    
+    def _create_unlocked_achievements_menu(self, achievements: list) -> Menu:
+        """Create unlocked achievements menu."""
+        menu = Menu("UNLOCKED ACHIEVEMENTS")
+        
+        for achievement in achievements:
+            name = f"{achievement.icon} {achievement.name}"
+            description = f"{achievement.description} (+{achievement.points} pts)"
+            menu.add_text(name, description)
+        
+        menu.add_back()
+        return menu
+    
+    def _create_locked_achievements_menu(self, achievements: list) -> Menu:
+        """Create locked achievements menu."""
+        menu = Menu("LOCKED ACHIEVEMENTS")
+        
+        for achievement in achievements:
+            name = f"??? {achievement.name}"
+            description = f"???"  # Hide description for locked achievements
+            menu.add_text(name, description)
+        
+        menu.add_back()
+        return menu
+    
+    def _create_recent_scores_menu(self) -> Menu:
+        """Create recent scores menu."""
+        recent_menu = Menu("RECENT SCORES", "Latest scores from past 24 hours")
+        
+        scores = self.leaderboard_system.get_recent_scores(hours=24, limit=10)
+        
+        if not scores:
+            recent_menu.add_text("No recent scores", "Play some games to see recent activity!")
+        else:
+            for entry in scores:
+                time_str = datetime.fromtimestamp(entry.timestamp).strftime('%H:%M')
+                score_text = f"[{time_str}] {entry.player_name}: {entry.score}"
+                game_info = f"{entry.game_name} ({entry.game_mode})"
+                recent_menu.add_text(score_text, game_info)
+        
+        recent_menu.add_back()
+        return recent_menu
+    
     def _create_browse_plugins_menu(self) -> Menu:
         """Create browse plugins submenu."""
         browse_menu = Menu("BROWSE PLUGINS")
@@ -260,7 +435,16 @@ class GameLauncher:
             
             score = game.run(stdscr, mode)
             
-            # Update high score
+            # Save score to leaderboard
+            game_name = plugin_info.metadata.get('name', 'Unknown Game')
+            mode_name = mode.value if hasattr(mode, 'value') else str(mode)
+            
+            self.leaderboard_system.add_score(
+                self.current_player, score, game_name, mode_name,
+                additional_data={'plugin_id': plugin_id}
+            )
+            
+            # Update high score in metadata
             if score > plugin_info.metadata.get('high_score', 0):
                 plugin_info.metadata['high_score'] = score
             
