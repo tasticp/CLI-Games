@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional
 from core.config import Config
 from core.plugin_manager import PluginManager
 from core.leaderboard import LeaderboardSystem
+from core.multiplayer import MultiplayerManager
 from ui.menu import Menu, MenuItem, MenuAction
 from plugins.base_game import BaseGame, GameMode
 
@@ -20,12 +21,16 @@ class GameLauncher:
         self.config = config
         self.plugin_manager = PluginManager(config)
         self.leaderboard_system = LeaderboardSystem(config)
+        self.multiplayer_manager = MultiplayerManager(config)
         self.running = True
         self.current_player = "Player"  # Default player name
         
         # Load all plugins
         self.plugin_manager.load_all_plugins()
         self.plugin_manager._load_plugin_settings()
+        
+        # Load multiplayer sessions
+        self.multiplayer_manager.load_sessions()
     
     def start(self):
         """Start the launcher main menu."""
@@ -48,6 +53,7 @@ class GameLauncher:
         main_menu.add_submenu("🏆 Leaderboards", self._create_leaderboards_menu())
         main_menu.add_submenu("⚙️ Settings", self._create_settings_menu())
         main_menu.add_submenu("🔌 Plugin Manager", self._create_plugin_menu())
+        main_menu.add_submenu("👥 Multiplayer", self._create_multiplayer_menu())
         main_menu.add_submenu("❓ Help", self._create_help_menu())
         main_menu.add_exit()
         
@@ -381,6 +387,73 @@ class GameLauncher:
         
         recent_menu.add_back()
         return recent_menu
+    
+    def _create_multiplayer_menu(self) -> Menu:
+        """Create multiplayer menu."""
+        multiplayer_menu = Menu("MULTIPLAYER", "Play with friends!")
+        
+        multiplayer_menu.add_submenu("Local Multiplayer", self._create_local_multiplayer_menu())
+        multiplayer_menu.add_text("Host LAN Game", "Host a game on your network")
+        multiplayer_menu.add_text("Join LAN Game", "Join a game on your network")
+        multiplayer_menu.add_submenu("Active Sessions", self._create_sessions_menu())
+        multiplayer_menu.add_text("Disconnect", "Leave current multiplayer game")
+        multiplayer_menu.add_back()
+        
+        return multiplayer_menu
+    
+    def _create_local_multiplayer_menu(self) -> Menu:
+        """Create local multiplayer menu."""
+        local_menu = Menu("LOCAL MULTIPLAYER", "Choose a game and number of players")
+        
+        # Get games that support multiplayer
+        multiplayer_games = []
+        plugins = self.plugin_manager.get_enabled_plugins()
+        
+        for plugin_id, info in plugins.items():
+            if info.metadata.get('max_players', 1) > 1:
+                multiplayer_games.append((plugin_id, info))
+        
+        if not multiplayer_games:
+            local_menu.add_text("No multiplayer games available", "Install some multiplayer games!")
+        else:
+            for plugin_id, info in multiplayer_games:
+                game_name = info.metadata.get('name', 'Unknown')
+                max_players = info.metadata.get('max_players', 2)
+                
+                # Create submenus for player counts
+                player_menu = Menu(f"{game_name.upper()} PLAYERS")
+                
+                for player_count in range(2, max_players + 1):
+                    player_text = f"{player_count} Players"
+                    player_menu.add_text(
+                        player_text, 
+                        f"Start {game_name} with {player_count} players"
+                    )
+                
+                player_menu.add_back()
+                local_menu.add_submenu(f"{game_name} ({max_players}p)", player_menu)
+        
+        local_menu.add_back()
+        return local_menu
+    
+    def _create_sessions_menu(self) -> Menu:
+        """Create active sessions menu."""
+        sessions_menu = Menu("ACTIVE SESSIONS", "Join or view game sessions")
+        
+        sessions = self.multiplayer_manager.get_available_sessions()
+        
+        if not sessions:
+            sessions_menu.add_text("No active sessions", "Create or join a game!")
+        else:
+            for session in sessions:
+                session_text = f"{session['game_name']} ({session['players']}/{session['max_players']})"
+                session_menu.add_text(
+                    session_text,
+                    f"Session: {session['session_id']} - {session['mode'].title()}"
+                )
+        
+        sessions_menu.add_back()
+        return sessions_menu
     
     def _create_browse_plugins_menu(self) -> Menu:
         """Create browse plugins submenu."""
