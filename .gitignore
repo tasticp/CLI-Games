@@ -1,0 +1,108 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python-build/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Configuration (keep local config)
+!config/settings.json
+!.cli-games/
+
+# Save files
+*.sav
+*.save
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Network
+*.pid
+
+# Assets (if you want to commit some)
+assets/sounds/
+assets/fonts/custom/
+
+# Documentation builds
+docs/_build/
+docs/site/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+coverage.xml
+*.cover
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Black
+.black_cache/
+
+# Flake8
+.flake8
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Ceilings
+.rope_project
